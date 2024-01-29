@@ -2,7 +2,8 @@
   "degrade": false,
   "exceptionThreshold": 1000,
   "httpEntrancePatterns": [
-    "^/regress/.*$"
+    "^/regress/.*$",
+    "^/greeting.*$"
   ],
   "javaEntranceBehaviors": [
     {
@@ -34,6 +35,11 @@
       "methodPatterns": [
         "slogan"
       ]
+    },
+    {
+      "classPattern": "hello.GreetingController",
+      "methodPatterns": ["greeting"],
+      "includeSubClasses": false
     }
   ],
   "pluginIdentities": [
@@ -43,12 +49,14 @@
     "mybatis",
     "ibatis",
     "dubbo-provider",
-    "dubbo-consumer"
+    "dubbo-consumer",
+    "apollo"
   ],
   "repeatIdentities": [
     "java",
     "http",
-    "dubbo"
+    "dubbo",
+    "apollo"
   ],
   "sampleRate": 10000,
   "useTtl": true

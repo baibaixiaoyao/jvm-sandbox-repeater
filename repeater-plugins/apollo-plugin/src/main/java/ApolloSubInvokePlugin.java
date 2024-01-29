@@ -1,7 +1,3 @@
-package com.alibaba.jvm.sandbox.repeater.plugin.java;
-
-import java.util.List;
-
 import com.alibaba.jvm.sandbox.repeater.plugin.api.InvocationProcessor;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.impl.AbstractInvokePluginAdapter;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.model.EnhanceModel;
@@ -10,58 +6,51 @@ import com.alibaba.jvm.sandbox.repeater.plugin.domain.InvokeType;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeaterConfig;
 import com.alibaba.jvm.sandbox.repeater.plugin.exception.PluginLifeCycleException;
 import com.alibaba.jvm.sandbox.repeater.plugin.spi.InvokePlugin;
-
 import com.google.common.collect.Lists;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.MetaInfServices;
 
+import java.util.List;
+
 /**
- * java子调用插件
- * <p>
+ * apollo子调用插件
  *
- * @author zhaoyb1990
+ * @author liquan.lq
  */
 @MetaInfServices(InvokePlugin.class)
-public class JavaSubInvokePlugin extends AbstractInvokePluginAdapter {
-
-    private volatile RepeaterConfig config;
+public class ApolloSubInvokePlugin extends AbstractInvokePluginAdapter {
 
     @Override
     protected List<EnhanceModel> getEnhanceModels() {
-        if (config == null || CollectionUtils.isEmpty(config.getJavaSubInvokeBehaviors())) {
-            return null;
-        }
+        Behavior apolloBehavior = new Behavior();
+        apolloBehavior.setClassPattern("com.ctrip.framework.apollo.internals.DefaultConfigManager");
+        apolloBehavior.setMethodPatterns(new String[]{"getConfig"});
+        apolloBehavior.setIncludeSubClasses(false);
+
         List<EnhanceModel> ems = Lists.newArrayList();
-        for (Behavior behavior : config.getJavaSubInvokeBehaviors()) {
-            ems.add(EnhanceModel.convert(behavior));
-        }
+        ems.add(EnhanceModel.convert(apolloBehavior));
         return ems;
     }
 
     @Override
     protected InvocationProcessor getInvocationProcessor() {
-        return new JavaInvocationProcessor(getType());
+        return new ApolloInvocationProcessor(getType());
     }
 
     @Override
     public InvokeType getType() {
-        return InvokeType.JAVA;
+        return InvokeType.APOLLO;
     }
 
     @Override
     public String identity() {
-        return "java-subInvoke";
+        return "apollo-subInvoke";
     }
 
     @Override
     public boolean isEntrance() {
         return false;
-    }
-
-    @Override
-    public boolean enable(RepeaterConfig config) {
-        this.config = config;
-        return super.enable(config);
     }
 
     @Override
@@ -71,12 +60,11 @@ public class JavaSubInvokePlugin extends AbstractInvokePluginAdapter {
         } else {
             List<Behavior> current = config.getJavaSubInvokeBehaviors();
             List<Behavior> latest = configTemporary.getJavaSubInvokeBehaviors();
-            this.config = config;
             super.onConfigChange(config);
-            if (JavaPluginUtils.hasDifference(current, latest)) {
-                log.error("onConfigChange,config={},configTemporary={}", config, configTemporary);
-                reWatch0();
-            }
+//            if (JavaPluginUtils.hasDifference(current, latest)) {
+//                log.error("onConfigChange,config={},configTemporary={}", config, configTemporary);
+//                reWatch0();
+//            }
         }
     }
 }

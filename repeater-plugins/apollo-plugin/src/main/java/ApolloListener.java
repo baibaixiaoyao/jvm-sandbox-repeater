@@ -5,10 +5,13 @@ import com.alibaba.jvm.sandbox.api.event.ReturnEvent;
 import com.alibaba.jvm.sandbox.api.event.ThrowsEvent;
 import com.alibaba.jvm.sandbox.repeater.plugin.api.InvocationListener;
 import com.alibaba.jvm.sandbox.repeater.plugin.api.InvocationProcessor;
+import com.alibaba.jvm.sandbox.repeater.plugin.core.cache.RepeatCache;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.impl.api.DefaultEventListener;
+import com.alibaba.jvm.sandbox.repeater.plugin.core.trace.Tracer;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.util.LogUtil;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.Invocation;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.InvokeType;
+import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeatContext;
 import com.ctrip.framework.apollo.Config;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
@@ -31,12 +34,22 @@ public class ApolloListener extends DefaultEventListener {
 
     @Override
     public void onEvent(Event event) throws Throwable {
-        super.onEvent(event);
+//        super.onEvent(event);
+        if (event.type == Event.Type.BEFORE) {
+            BeforeEvent beforeEvent = (BeforeEvent) event;
+            if (RepeatCache.isRepeatFlow(Tracer.getTraceId())) {
+                RepeatContext repeatContext = RepeatCache.getRepeatContext(Tracer.getTraceId());
+                if (repeatContext != null) {
+                    repeatContext.getRecordModel().getAppName();
+                }
+            }
+        }
     }
 
     @Override
     protected void doBefore(BeforeEvent event) throws ProcessControlException {
         super.doBefore(event);
+//        processor.doMock(event, entrance, invokeType);
     }
 
     @Override

@@ -1,9 +1,5 @@
 import com.alibaba.jvm.sandbox.repeater.plugin.core.impl.AbstractRepeater;
-import com.alibaba.jvm.sandbox.repeater.plugin.core.spring.SpringContextAdapter;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.Identity;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.Invocation;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.InvokeType;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeatContext;
+import com.alibaba.jvm.sandbox.repeater.plugin.domain.*;
 import com.alibaba.jvm.sandbox.repeater.plugin.spi.Repeater;
 import org.kohsuke.MetaInfServices;
 
@@ -30,4 +26,10 @@ public class ApolloRepeater extends AbstractRepeater {
         Identity identity = invocation.getIdentity();
         return null;
     }
+
+    @Override
+    public void repeat(RepeatContext context) {
+        super.repeat(context);
+    }
+
 }
