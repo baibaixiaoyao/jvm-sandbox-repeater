@@ -3,14 +3,11 @@ import com.alibaba.jvm.sandbox.api.event.BeforeEvent;
 import com.alibaba.jvm.sandbox.api.event.Event;
 import com.alibaba.jvm.sandbox.api.event.InvokeEvent;
 import com.alibaba.jvm.sandbox.api.event.ThrowsEvent;
-import com.alibaba.jvm.sandbox.repeater.plugin.core.cache.RepeatCache;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.impl.api.DefaultInvocationProcessor;
-import com.alibaba.jvm.sandbox.repeater.plugin.core.trace.Tracer;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.Identity;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.Invocation;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.InvokeType;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeatContext;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.mock.MockRequest;
 
 import java.util.Map;
 
@@ -41,10 +38,7 @@ class ApolloInvocationProcessor extends DefaultInvocationProcessor {
 
     @Override
     public void doMock(BeforeEvent event, Boolean entrance, InvokeType type) throws ProcessControlException {
-        RepeatContext context = RepeatCache.getRepeatContext(Tracer.getTraceId());
-        if(skipMock(event,entrance,context) && context != null && context.getMeta().isMock()){
-        }
-//        super.doMock(event, entrance, type);
+        super.doMock(event, entrance, type);
     }
 
     @Override
@@ -74,6 +68,7 @@ class ApolloInvocationProcessor extends DefaultInvocationProcessor {
 
     @Override
     public Identity assembleIdentity(BeforeEvent event) {
-        return super.assembleIdentity(event);
+       return super.assembleIdentity(event);
     }
+
 }

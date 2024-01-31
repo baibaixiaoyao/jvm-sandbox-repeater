@@ -5,19 +5,16 @@ import com.alibaba.jvm.sandbox.api.event.ReturnEvent;
 import com.alibaba.jvm.sandbox.api.event.ThrowsEvent;
 import com.alibaba.jvm.sandbox.repeater.plugin.api.InvocationListener;
 import com.alibaba.jvm.sandbox.repeater.plugin.api.InvocationProcessor;
-import com.alibaba.jvm.sandbox.repeater.plugin.core.cache.RepeatCache;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.impl.api.DefaultEventListener;
-import com.alibaba.jvm.sandbox.repeater.plugin.core.trace.Tracer;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.util.LogUtil;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.Invocation;
 import com.alibaba.jvm.sandbox.repeater.plugin.domain.InvokeType;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeatContext;
 import com.ctrip.framework.apollo.Config;
+import com.ctrip.framework.apollo.internals.DefaultConfigManager;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
 import java.lang.reflect.Field;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -25,31 +22,21 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Author: liquan.lq
  */
 public class ApolloListener extends DefaultEventListener {
-    Map<String, Map<String, String>> my_configs = new ConcurrentHashMap<String, Map<String, String>>();
-    Map<String, Config> m_configs = null;
+    public static Map<String, Config> m_configs = new ConcurrentHashMap<String, Config>();
+    public static Object m_target ;
 
-    ApolloListener(InvokeType invokeType, boolean entrance, InvocationListener listener, InvocationProcessor processor) {
+    public ApolloListener(InvokeType invokeType, boolean entrance, InvocationListener listener, InvocationProcessor processor) {
         super(invokeType, entrance, listener, processor);
     }
 
     @Override
     public void onEvent(Event event) throws Throwable {
-//        super.onEvent(event);
-        if (event.type == Event.Type.BEFORE) {
-            BeforeEvent beforeEvent = (BeforeEvent) event;
-            if (RepeatCache.isRepeatFlow(Tracer.getTraceId())) {
-                RepeatContext repeatContext = RepeatCache.getRepeatContext(Tracer.getTraceId());
-                if (repeatContext != null) {
-                    repeatContext.getRecordModel().getAppName();
-                }
-            }
-        }
+        super.onEvent(event);
     }
 
     @Override
     protected void doBefore(BeforeEvent event) throws ProcessControlException {
         super.doBefore(event);
-//        processor.doMock(event, entrance, invokeType);
     }
 
     @Override
@@ -84,21 +71,33 @@ public class ApolloListener extends DefaultEventListener {
             Object target = beforeEvent.target;
             Object[] args = beforeEvent.argumentArray;
 
-            try {
-                Field filed_m_configs = FieldUtils.getDeclaredField(target.getClass(), "m_configs", true);
-                m_configs = (Map<String, Config>) filed_m_configs.get(target);
-                for (Object arg : args) {
-                    Config config = m_configs.get(arg);
-                    Set<String> set = config.getPropertyNames();
-                    Map<String, String> configMap = new ConcurrentHashMap<String, String>();
-
-                    for (String s : set) {
-                        configMap.put(s, config.getProperty(s, ""));
+            // 首次启动
+            if (target.getClass().getName().equals("com.ctrip.framework.apollo.internals.DefaultConfigManager")) {
+                try {
+                    Field originConfigs = FieldUtils.getDeclaredField(target.getClass(), "m_configs", true);
+                    Map<String, Config> tmpMap = (Map<String, Config>) originConfigs.get(target);
+                    for (String key : tmpMap.keySet()) {
+                        m_configs.put(key, tmpMap.get(key));
                     }
-                    my_configs.put(arg.toString(), configMap);
+                    m_target = target;
+                } catch (Exception e) {
+                    LogUtil.warn("DefaultConfigManager#getConfig exception.", e);
                 }
-            } catch (Exception e) {
-                LogUtil.warn("defaultConfigManager#getConfig exception.", e);
+            }
+            // 主动、被动推送
+            if (target.getClass().getName().equals("com.ctrip.framework.apollo.internals.RemoteConfigRepository")) {
+                try {
+                    Field newConfigs = FieldUtils.getDeclaredField(DefaultConfigManager.class, "m_configs", true);
+                    if (m_configs != null) {
+                        newConfigs.set(m_target, m_configs);
+                    }
+//                    Object retVal = MethodUtils.invokeMethod(target,true,"loadApolloConfig");
+//                    if(retVal instanceof ApolloConfig){
+//                      apolloConfig  = (ApolloConfig) retVal;
+//                    }
+                } catch (Exception e) {
+                    LogUtil.warn("RemoteConfigRepository#loadApolloConfig exception.", e);
+                }
             }
         }
     }

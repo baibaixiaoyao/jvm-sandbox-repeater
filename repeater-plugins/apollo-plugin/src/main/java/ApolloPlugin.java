@@ -19,18 +19,25 @@ import java.util.List;
 public class ApolloPlugin extends AbstractInvokePluginAdapter {
     @Override
     protected List<EnhanceModel> getEnhanceModels() {
-        EnhanceModel em = EnhanceModel.builder()
+        EnhanceModel defaultConfigManagerEM = EnhanceModel.builder()
                 .classPattern("com.ctrip.framework.apollo.internals.DefaultConfigManager")
                 .methodPatterns(EnhanceModel.MethodPattern.transform(
                         "getConfig"))
                 .watchTypes(Event.Type.BEFORE, Event.Type.RETURN, Event.Type.THROWS)
                 .build();
-        return Lists.newArrayList(em);
+
+        EnhanceModel RemoteConfigEM = EnhanceModel.builder()
+                .classPattern("com.ctrip.framework.apollo.internals.RemoteConfigRepository")
+                .methodPatterns(EnhanceModel.MethodPattern.transform(
+                        "loadApolloConfig"))
+                .watchTypes(Event.Type.BEFORE, Event.Type.RETURN, Event.Type.THROWS)
+                .build();
+        return Lists.newArrayList(defaultConfigManagerEM, RemoteConfigEM);
     }
 
     @Override
     protected InvocationProcessor getInvocationProcessor() {
-        return null;
+        return new ApolloInvocationProcessor(getType());
     }
 
     @Override
