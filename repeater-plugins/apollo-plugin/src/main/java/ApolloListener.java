@@ -41,7 +41,7 @@ public class ApolloListener extends DefaultEventListener {
                 try {
                     Field originConfigs = FieldUtils.getDeclaredField(target.getClass(), "m_configs", true);
                     Map<String, Config> tmpMap = (Map<String, Config>) originConfigs.get(target);
-                    // 写apollo缓存信息
+                    // 写apollo信息
                     File file = FileUtils.getFile(this.getClass().getResource("/").getPath() + "/linAo.properties");
                     if (file.exists()) {
                         file.delete();
@@ -59,21 +59,19 @@ public class ApolloListener extends DefaultEventListener {
                     LogUtil.warn("DefaultConfigManager#getConfig exception.", e);
                 }
             }
-            // 主动\被动推送
+            // 主动/被动推送
             if (target.getClass().getName().equals("com.ctrip.framework.apollo.internals.RemoteConfigRepository")) {
                 try {
-                    Object retVal = MethodUtils.invokeMethod(target, true, "loadApolloConfig");
-                    ApolloConfig apolloConfig = (ApolloConfig) retVal;
-                    Map<String, String> refreshMap = apolloConfig.getConfigurations();
-                    // 写apollo缓存信息
+                    Object retValue = MethodUtils.invokeMethod(target, true, "loadApolloConfig");
+                    ApolloConfig apolloConfig = (ApolloConfig) retValue;
+                    // 更新apollo信息
                     File file = FileUtils.getFile(this.getClass().getResource("/").getPath() + "/linAo.properties");
-                    Map<String, String> kv = (Map<String, String>) jsonObject.get(apolloConfig.getNamespaceName());
-                    if (kv != null) {
-                        jsonObject.put("properties", refreshMap);
-                    } else {
-                        jsonObject.put(apolloConfig.getNamespaceName(), refreshMap);
+                    if (file != null) {
+                        if (jsonObject != null && apolloConfig != null) {
+                            jsonObject.put(apolloConfig.getNamespaceName(), apolloConfig.getConfigurations());
+                            FileUtils.write(file, jsonObject.toJSONString(), Charset.forName("UTF-8"));
+                        }
                     }
-                    FileUtils.write(file, jsonObject.toJSONString(), Charset.forName("UTF-8"));
                 } catch (Exception e) {
                     LogUtil.warn("RemoteConfigRepository#loadApolloConfig exception.", e);
                 }
