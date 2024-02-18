@@ -34,14 +34,13 @@ public class ApolloListener extends DefaultEventListener {
         if (event.type == Event.Type.BEFORE) {
             BeforeEvent beforeEvent = (BeforeEvent) event;
             Object target = beforeEvent.target;
-            Object[] args = beforeEvent.argumentArray;
 
-            // 首次启动
+            // application startup
             if (target.getClass().getName().equals("com.ctrip.framework.apollo.internals.DefaultConfigManager")) {
                 try {
                     Field originConfigs = FieldUtils.getDeclaredField(target.getClass(), "m_configs", true);
                     Map<String, Config> tmpMap = (Map<String, Config>) originConfigs.get(target);
-                    // 写apollo信息
+                    // 写apollo初始值
                     File file = FileUtils.getFile(this.getClass().getResource("/").getPath() + "/linAo.properties");
                     if (file.exists()) {
                         file.delete();
@@ -55,11 +54,11 @@ public class ApolloListener extends DefaultEventListener {
                         jsonObject.put(namespace, kv);
                     }
                     FileUtils.write(file, jsonObject.toJSONString(), Charset.forName("UTF-8"));
-                } catch (Exception e) {
-                    LogUtil.warn("DefaultConfigManager#getConfig exception.", e);
+                } catch (Exception ex) {
+                    LogUtil.warn("DefaultConfigManager#getConfig exception", ex);
                 }
             }
-            // 主动/被动推送
+            // push & pull
             if (target.getClass().getName().equals("com.ctrip.framework.apollo.internals.RemoteConfigRepository")) {
                 try {
                     Object retValue = MethodUtils.invokeMethod(target, true, "loadApolloConfig");
@@ -72,8 +71,8 @@ public class ApolloListener extends DefaultEventListener {
                             FileUtils.write(file, jsonObject.toJSONString(), Charset.forName("UTF-8"));
                         }
                     }
-                } catch (Exception e) {
-                    LogUtil.warn("RemoteConfigRepository#loadApolloConfig exception.", e);
+                } catch (Exception ex) {
+                    LogUtil.warn("RemoteConfigRepository#loadApolloConfig exception", ex);
                 }
             }
         }

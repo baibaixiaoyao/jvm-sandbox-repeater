@@ -1,15 +1,23 @@
 package com.alibaba.jvm.sandbox.repeater.plugin.core.impl;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import com.alibaba.fastjson.JSONObject;
 import com.alibaba.jvm.sandbox.repeater.plugin.api.Broadcaster;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.cache.RepeatCache;
 import com.alibaba.jvm.sandbox.repeater.plugin.core.trace.Tracer;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeaterConfig;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeatContext;
-import com.alibaba.jvm.sandbox.repeater.plugin.domain.RepeatModel;
+import com.alibaba.jvm.sandbox.repeater.plugin.domain.*;
 import com.alibaba.jvm.sandbox.repeater.plugin.spi.Repeater;
 
+import com.ctrip.framework.apollo.Config;
+import com.ctrip.framework.apollo.ConfigService;
+import com.ctrip.framework.apollo.internals.DefaultConfig;
+import com.ctrip.framework.apollo.internals.DefaultConfigManager;
 import com.google.common.base.Stopwatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +45,10 @@ public abstract class AbstractRepeater implements Repeater {
             Tracer.start(context.getTraceId());
             // before invoke advice
             RepeatInterceptorFacade.instance().beforeInvoke(context.getRecordModel());
+            // mock apollo
+            if(context.getMeta().isMock()){
+                mockApollo(context.getRecordModel());
+            }
             Object response = executeRepeat(context);
             // after invoke advice
             RepeatInterceptorFacade.instance().beforeReturn(context.getRecordModel(), response);
@@ -53,6 +65,51 @@ public abstract class AbstractRepeater implements Repeater {
             Tracer.end();
         }
         sendRepeat(record);
+    }
+
+    /**
+     * 获取录制时写入的apollo原始值，反射触发apollo本地仓库自动更新，存在首次问题
+     *
+     * @param recordModel
+     */
+    void mockApollo(RecordModel recordModel) {
+        try {
+            List<Invocation> subInvocations = recordModel.getSubInvocations();
+            if (subInvocations != null) {
+                for (Invocation invocation : subInvocations) {
+                    if (invocation.getIdentity().getScheme().equals("apollo")) {
+                        JSONObject jsonObject = JSONObject.parseObject(invocation.getResponse().toString());
+                        //
+                        Field mock_s_instance = ConfigService.class.getDeclaredField("s_instance");
+                        mock_s_instance.setAccessible(true);
+                        Object configServiceInstance = mock_s_instance.get(null);
+                        //
+                        Field mock_m_configManager = ConfigService.class.getDeclaredField("m_configManager");
+                        mock_m_configManager.setAccessible(true);
+                        Object configManagerInstance = mock_m_configManager.get(configServiceInstance);
+                        //
+                        Field mock_m_configs = DefaultConfigManager.class.getDeclaredField("m_configs");
+                        mock_m_configs.setAccessible(true);
+                        Map<String, Config> defaultConfigMapInstance = (Map<String, Config>) mock_m_configs.get(configManagerInstance);
+                        // replace apollo value
+                        // @TODO 需要注意apollo value的类型
+                        for (String apolloNameSpace : jsonObject.keySet()) {
+                            Map<String, String> resultMap = jsonObject.getObject(apolloNameSpace, Map.class);
+                            Properties properties = new Properties();
+                            for (String key : resultMap.keySet()) {
+                                properties.setProperty(key, resultMap.get(key));
+                            }
+                            //
+                            Method defaultConfigChange = DefaultConfig.class.getDeclaredMethod("onRepositoryChange", String.class, Properties.class);
+                            defaultConfigChange.setAccessible(true);
+                            defaultConfigChange.invoke(defaultConfigMapInstance.get(apolloNameSpace), apolloNameSpace, properties);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("mock apollo error", ex);
+        }
     }
 
     @Override

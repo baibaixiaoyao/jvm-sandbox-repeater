@@ -2,6 +2,7 @@ package com.alibaba.jvm.sandbox.repeater.plugin.core.impl.api;
 
 import java.io.File;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,32 +42,46 @@ public class DefaultInvocationListener implements InvocationListener {
         this.broadcast = broadcast;
     }
 
-    //@todo add apollo invocation
-    List<Invocation> retSubInvocation(List<Invocation> originSubInvocation) {
+    /**
+     * add apollo invocation
+     * 1、有子调用，直接add
+     * 2、无子调用，new SubInvocation后add
+     *
+     * @param subInvocation
+     * @param mainInvocation
+     * @return
+     */
+    List<Invocation> addApolloSubInvocation(List<Invocation> subInvocation, Invocation mainInvocation) {
         try {
             Long t = System.currentTimeMillis();
             File file = FileUtils.getFile(this.getClass().getResource("/").getPath() + "/linAo.properties");
-            if(file != null){
+            if (file != null) {
                 String result = FileUtils.readFileToString(file, Charset.forName("UTF-8"));
                 JSONObject jsonObject = JSONObject.parseObject(result);
                 if (jsonObject != null && !jsonObject.isEmpty()) {
                     Invocation apolloInvocation = new Invocation();
                     apolloInvocation.setIdentity(new Identity("apollo", jsonObject.keySet().toString(), "linAo", new HashMap<String, String>(1)));
                     apolloInvocation.setType(InvokeType.APOLLO);
-                    apolloInvocation.setTraceId(originSubInvocation.get(0).getTraceId());
-                    apolloInvocation.setIndex(originSubInvocation.size() + 1);
+                    apolloInvocation.setTraceId(subInvocation != null ? subInvocation.get(subInvocation.size() - 1).getTraceId() : mainInvocation.getTraceId());
+                    apolloInvocation.setIndex(subInvocation != null ? subInvocation.size() + 1 : 0);
                     apolloInvocation.setResponse(jsonObject);
                     apolloInvocation.setStart(t - 1);
                     apolloInvocation.setEnd(t + 3);
-                    apolloInvocation.setSerializeToken(originSubInvocation.get(0).getSerializeToken());
+                    apolloInvocation.setInvokeId(subInvocation != null ? subInvocation.get(subInvocation.size() - 1).getInvokeId() + 1 : mainInvocation.getInvokeId() + 1);
+                    apolloInvocation.setProcessId(subInvocation != null ? subInvocation.get(subInvocation.size() - 1).getProcessId() + 1 : mainInvocation.getProcessId() + 1);
+                    apolloInvocation.setSerializeToken(subInvocation != null ? subInvocation.get(subInvocation.size() - 1).getSerializeToken() : mainInvocation.getSerializeToken());
                     SerializerWrapper.inTimeSerialize(apolloInvocation);
-                    originSubInvocation.add(apolloInvocation);
+                    // 无子调用，new后add
+                    if (subInvocation == null) {
+                        subInvocation = new ArrayList<Invocation>();
+                    }
+                    subInvocation.add(apolloInvocation);
                 }
             }
         } catch (Exception e) {
             log.error("apollo invocation serialize error", e);
         }
-        return originSubInvocation;
+        return subInvocation;
     }
 
     @Override
@@ -86,8 +101,8 @@ public class DefaultInvocationListener implements InvocationListener {
             recordModel.setTraceId(invocation.getTraceId());
             recordModel.setTimestamp(invocation.getStart());
             recordModel.setEntranceInvocation(invocation);
-            // 如果有apollo数据则需要插入到subInvocation
-            recordModel.setSubInvocations(retSubInvocation(RecordCache.getSubInvocation(invocation.getTraceId())));
+            // 如果有apollo数据则需要添加到subInvocation
+            recordModel.setSubInvocations(addApolloSubInvocation(RecordCache.getSubInvocation(invocation.getTraceId()), invocation));
             if (log.isDebugEnabled()) {
                 log.debug("sampleOnRecord:traceId={},rootType={},subTypes={}", recordModel.getTraceId(), invocation.getType(), assembleTypes(recordModel));
             }
