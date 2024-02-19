@@ -51,7 +51,7 @@ public class DefaultInvocationListener implements InvocationListener {
      * @param mainInvocation
      * @return
      */
-    List<Invocation> addApolloSubInvocation(List<Invocation> subInvocation, Invocation mainInvocation) {
+    List<Invocation> addApolloSubInvocation(List<Invocation> subInvocation, Invocation mainInvocation, List<String> apolloExclusionsNameSpaces) {
         try {
             Long t = System.currentTimeMillis();
             File file = FileUtils.getFile(this.getClass().getResource("/").getPath() + "/linAo.properties");
@@ -59,6 +59,11 @@ public class DefaultInvocationListener implements InvocationListener {
                 String result = FileUtils.readFileToString(file, Charset.forName("UTF-8"));
                 JSONObject jsonObject = JSONObject.parseObject(result);
                 if (jsonObject != null && !jsonObject.isEmpty()) {
+                    for(String key : jsonObject.keySet()){
+                        if(apolloExclusionsNameSpaces.contains(key)){
+                            jsonObject.remove(key);
+                        }
+                    }
                     Invocation apolloInvocation = new Invocation();
                     apolloInvocation.setIdentity(new Identity("apollo", jsonObject.keySet().toString(), "linAo", new HashMap<String, String>(1)));
                     apolloInvocation.setType(InvokeType.APOLLO);
@@ -102,7 +107,7 @@ public class DefaultInvocationListener implements InvocationListener {
             recordModel.setTimestamp(invocation.getStart());
             recordModel.setEntranceInvocation(invocation);
             // 如果有apollo数据则需要添加到subInvocation
-            recordModel.setSubInvocations(addApolloSubInvocation(RecordCache.getSubInvocation(invocation.getTraceId()), invocation));
+            recordModel.setSubInvocations(addApolloSubInvocation(RecordCache.getSubInvocation(invocation.getTraceId()), invocation, am.getConfig().getApolloExclusionsNameSpaces()));
             if (log.isDebugEnabled()) {
                 log.debug("sampleOnRecord:traceId={},rootType={},subTypes={}", recordModel.getTraceId(), invocation.getType(), assembleTypes(recordModel));
             }

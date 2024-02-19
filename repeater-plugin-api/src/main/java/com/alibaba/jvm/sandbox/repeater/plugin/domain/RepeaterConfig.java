@@ -77,6 +77,16 @@ public class RepeaterConfig implements java.io.Serializable{
      */
     private List<String> repeatIdentities = Lists.newArrayList();
 
+    private List<String> apolloExclusionsNameSpaces = Lists.newArrayList();
+
+    public List<String> getApolloExclusionsNameSpaces() {
+        return apolloExclusionsNameSpaces;
+    }
+
+    public void setApolloExclusionsNameSpaces(List<String> apolloExclusionsNameSpaces) {
+        this.apolloExclusionsNameSpaces = apolloExclusionsNameSpaces;
+    }
+
     public boolean isUseTtl() {
         return useTtl;
     }
